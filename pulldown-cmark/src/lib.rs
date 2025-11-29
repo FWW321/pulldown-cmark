@@ -658,7 +658,6 @@ impl<'a> Event<'a> {
 /// 表格列文本对齐方式。
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-
 pub enum Alignment {
     /// 默认文本对齐方式。
     None,

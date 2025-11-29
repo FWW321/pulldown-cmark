@@ -268,7 +268,7 @@ impl<'a> LineStart<'a> {
     pub(crate) fn scan_closing_container_extensions_fence(&mut self, length: u8) -> bool {
         let fence_length = scan_while_max(&self.bytes[self.ix..], |c| c == b':', u8::MAX as usize);
         if fence_length >= length as usize {
-            self.ix = self.ix + fence_length;
+            self.ix += fence_length;
             true
         } else {
             false
@@ -508,11 +508,11 @@ fn scan_attr_value_chars(data: &[u8]) -> usize {
 }
 
 pub(crate) fn scan_eol(bytes: &[u8]) -> Option<usize> {
-    match bytes {
-        &[] => Some(0),
-        &[b'\n', ..] => Some(1),
-        &[b'\r', b'\n', ..] => Some(2),
-        &[b'\r', ..] => Some(1),
+    match *bytes {
+        [] => Some(0),
+        [b'\n', ..] => Some(1),
+        [b'\r', b'\n', ..] => Some(2),
+        [b'\r', ..] => Some(1),
         _ => None,
     }
 }
@@ -748,7 +748,7 @@ pub(crate) fn scan_code_fence(data: &[u8]) -> Option<(usize, u8)> {
             let suffix = &data[i..];
             let next_line = i + scan_nextline(suffix);
             // FIXME: make sure this is correct
-            if suffix[..(next_line - i)].iter().any(|&b| b == b'`') {
+            if suffix[..(next_line - i)].contains(&b'`') {
                 return None;
             }
         }
@@ -764,11 +764,7 @@ pub(crate) fn scan_interrupting_container_extensions_fence(data: &[u8]) -> bool 
     let kind_length = scan_while(&data[kind_start..], |c| {
         is_ascii_alphanumeric(c) || c == b'_' || c == b'-' || c == b':' || c == b'.'
     });
-    if fence_length > 2 && kind_length > 0 {
-        true
-    } else {
-        false
-    }
+    fence_length > 2 && kind_length > 0
 }
 
 /// Scan metadata block, returning the number of delimiter bytes

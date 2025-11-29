@@ -65,7 +65,7 @@ impl ChunkKind {
 }
 
 /// 分块配置
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ChunkConfig {
     /// 是否保留原始格式（包括换行符等）
     pub preserve_formatting: bool,
@@ -73,16 +73,6 @@ pub struct ChunkConfig {
     pub max_length: Option<usize>,
     /// 是否包含空块
     pub include_empty: bool,
-}
-
-impl Default for ChunkConfig {
-    fn default() -> Self {
-        Self {
-            preserve_formatting: false,
-            max_length: None,
-            include_empty: false,
-        }
-    }
 }
 
 /// Markdown 分块器

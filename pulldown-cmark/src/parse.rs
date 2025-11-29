@@ -518,7 +518,7 @@ impl<'input> ParserInner<'input> {
                         cur = self.tree[cur_ix].next;
                         continue;
                     }
-                    let is_display = self.tree[cur_ix].next.map_or(false, |next_ix| {
+                    let is_display = self.tree[cur_ix].next.is_some_and(|next_ix| {
                         matches!(
                             self.tree[next_ix].item.body,
                             ItemBody::MaybeMath(_can_open, _can_close, _brace_context)
@@ -544,7 +544,7 @@ impl<'input> ParserInner<'input> {
                                 self.tree[scan_ix].item.body
                             {
                                 let delim_is_display =
-                                    self.tree[scan_ix].next.map_or(false, |next_ix| {
+                                    self.tree[scan_ix].next.is_some_and(|next_ix| {
                                         matches!(
                                             self.tree[next_ix].item.body,
                                             ItemBody::MaybeMath(
@@ -1048,18 +1048,16 @@ impl<'input> ParserInner<'input> {
                                                 backslash_escaped: false,
                                             }
                                         }
+                                    } else if self.options.contains(Options::ENABLE_SUBSCRIPT) {
+                                        ItemBody::Subscript
+                                    } else if self
+                                        .options
+                                        .contains(Options::ENABLE_STRIKETHROUGH)
+                                    {
+                                        ItemBody::Strikethrough
                                     } else {
-                                        if self.options.contains(Options::ENABLE_SUBSCRIPT) {
-                                            ItemBody::Subscript
-                                        } else if self
-                                            .options
-                                            .contains(Options::ENABLE_STRIKETHROUGH)
-                                        {
-                                            ItemBody::Strikethrough
-                                        } else {
-                                            ItemBody::Text {
-                                                backslash_escaped: false,
-                                            }
+                                        ItemBody::Text {
+                                            backslash_escaped: false,
                                         }
                                     }
                                 } else if c == b'^' {
