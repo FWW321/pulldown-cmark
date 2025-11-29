@@ -62,6 +62,11 @@ name = "normalize-wikilink"
 required-features = ["html"]
 doc-scrape-examples = true
 
+[[example]]
+name = "chunk_api_demo"
+required-features = ["html"]
+doc-scrape-examples = true
+
 [dependencies]
 bitflags = "2"
 unicase = "2.6"

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-//! Scanners for fragments of CommonMark syntax
+//! CommonMark语法片段的扫描器
 
 use alloc::{string::String, vec::Vec};
 use core::char;
@@ -31,7 +31,7 @@ use crate::{
     LinkType,
 };
 
-// sorted for binary search
+// 按排序用于二分查找
 const HTML_TAGS: [&str; 62] = [
     "address",
     "article",
@@ -97,23 +97,19 @@ const HTML_TAGS: [&str; 62] = [
     "ul",
 ];
 
-/// Analysis of the beginning of a line, including indentation and container
+/// 行首的分析，包括缩进和容器
 /// markers.
 #[derive(Clone)]
 pub(crate) struct LineStart<'a> {
     bytes: &'a [u8],
     ix: usize,
 
-    // The index in `bytes` after the last tab we scanned; initially
-    // zero.
+    // 我们扫描的最后一个制表符之后在`bytes`中的索引；初始为0。
     //
-    // Thus, there are no tab characters between `ix` and here, and for
-    // the purpose of defining block structure, this position can be
-    // considered to fall on a tab stop.
+    // 因此，在`ix`和此处之间没有制表符，为了定义块结构的目的，
+    // 这个位置可以被认为落在制表符停止位置上。
     //
-    // This is only valid while scanning the initial portion of the
-    // line; methods that work with interior structure don't bother to
-    // update it.
+    // 这仅在扫描行的初始部分时有效；处理内部结构的方法不需要更新它。
     tab_start: usize,
 
     // In contexts where spaces help to define block structure, tabs
@@ -860,7 +856,7 @@ pub(crate) fn scan_listitem(bytes: &[u8]) -> Option<(usize, u8, usize, usize)> {
             return None;
         }
     };
-    // TODO: replace calc_indent with scan_leading_whitespace, for tab correctness
+    // TODO: 为了制表符正确性，用scan_leading_whitespace替换calc_indent
     let (mut postn, mut postindent) = calc_indent(&bytes[w..], 5);
     if postindent == 0 {
         scan_eol(&bytes[w..])?;
@@ -876,7 +872,7 @@ pub(crate) fn scan_listitem(bytes: &[u8]) -> Option<(usize, u8, usize, usize)> {
     Some((w + postn, c, start, w + postindent))
 }
 
-// returns (number of bytes, parsed decimal)
+// 返回（字节数，解析的十进制数）
 fn parse_decimal(bytes: &[u8], limit: usize) -> (usize, usize) {
     match bytes
         .iter()
@@ -889,7 +885,7 @@ fn parse_decimal(bytes: &[u8], limit: usize) -> (usize, usize) {
                 .and_then(|ten_acc| ten_acc.checked_add(digit))
             {
                 Some(number) => Ok((count + 1, number)),
-                // stop early on overflow
+                // 溢出时提前停止
                 None => Err((count, acc)),
             }
         }) {
@@ -897,7 +893,7 @@ fn parse_decimal(bytes: &[u8], limit: usize) -> (usize, usize) {
     }
 }
 
-// returns (number of bytes, parsed hex)
+// 返回（字节数，解析的十六进制数）
 fn parse_hex(bytes: &[u8], limit: usize) -> (usize, usize) {
     match bytes
         .iter()
@@ -907,7 +903,7 @@ fn parse_hex(bytes: &[u8], limit: usize) -> (usize, usize) {
             let digit = if c.is_ascii_digit() {
                 usize::from(c - b'0')
             } else {
-                // make lower case
+                // 转换为小写
                 c |= 0x20;
                 if (b'a'..=b'f').contains(&c) {
                     usize::from(c - b'a' + 10)
@@ -920,7 +916,7 @@ fn parse_hex(bytes: &[u8], limit: usize) -> (usize, usize) {
                 .and_then(|sixteen_acc| sixteen_acc.checked_add(digit))
             {
                 Some(number) => Ok((count + 1, number)),
-                // stop early on overflow
+                // 溢出时提前停止
                 None => Err((count, acc)),
             }
         }) {
@@ -936,7 +932,7 @@ fn char_from_codepoint(input: usize) -> Option<char> {
     char::from_u32(codepoint)
 }
 
-// doesn't bother to check data[0] == '&'
+// 不检查data[0] == '&'
 pub(crate) fn scan_entity(bytes: &[u8]) -> (usize, Option<CowStr<'static>>) {
     let mut end = 1;
     if bytes.get(end) == Some(&b'#') {
@@ -980,9 +976,9 @@ pub(crate) fn scan_wikilink_pipe(data: &str, start_ix: usize, len: usize) -> Opt
     None
 }
 
-// note: dest returned is raw, still needs to be unescaped
-// TODO: check that nested parens are really not allowed for refdefs
-// TODO(performance): this func should probably its own unescaping
+// 注意：返回的目标是原始的，仍需要反转义
+// TODO: 检查引用定义是否真的不允许嵌套括号
+// TODO(性能): 这个函数应该有自己的反转义功能
 pub(crate) fn scan_link_dest(
     data: &str,
     start_ix: usize,
@@ -992,7 +988,7 @@ pub(crate) fn scan_link_dest(
     let mut i = scan_ch(bytes, b'<');
 
     if i != 0 {
-        // pointy links
+        // 尖括号链接
         while i < bytes.len() {
             match bytes[i] {
                 b'\n' | b'\r' | b'<' => return None,
@@ -1006,7 +1002,7 @@ pub(crate) fn scan_link_dest(
         }
         None
     } else {
-        // non-pointy links
+        // 非尖括号链接
         let mut nest = 0;
         while i < bytes.len() {
             match bytes[i] {

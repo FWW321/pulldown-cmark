@@ -13,13 +13,13 @@ use core::{
 
 const MAX_INLINE_STR_LEN: usize = 3 * core::mem::size_of::<isize>() - 2;
 
-/// Returned when trying to convert a `&str` into a `InlineStr`
-/// but it fails because it doesn't fit.
+/// 当尝试将`&str`转换为`InlineStr`时返回的错误，
+/// 转换失败是因为字符串太长。
 #[derive(Debug)]
 pub struct StringTooLongError;
 
-/// An inline string that can contain almost three words
-/// of utf-8 text.
+/// 一个可以包含近三个单词的utf-8文本的
+/// 内联字符串。
 #[derive(Debug, Clone, Copy, Eq)]
 pub struct InlineStr {
     inner: [u8; MAX_INLINE_STR_LEN],
@@ -84,17 +84,17 @@ impl fmt::Display for InlineStr {
     }
 }
 
-/// A copy-on-write string that can be owned, borrowed
-/// or inlined.
+/// 一个写时复制字符串，可以是拥有的、借用的
+/// 或内联的。
 ///
-/// It is three words long.
+/// 它长度为三个字。
 #[derive(Debug, Eq)]
 pub enum CowStr<'a> {
-    /// An owned, immutable string.
+    /// 一个拥有的、不可变的字符串。
     Boxed(Box<str>),
-    /// A borrowed string.
+    /// 一个借用的字符串。
     Borrowed(&'a str),
-    /// A short inline string.
+    /// 一个短内联字符串。
     Inlined(InlineStr),
 }
 
@@ -327,7 +327,7 @@ mod test_special_string {
 
     #[test]
     fn max_inline_str_len_atleast_four() {
-        // we need 4 bytes to store a char
+        // 我们需要4个字节来存储一个字符
         assert!(MAX_INLINE_STR_LEN >= 4);
     }
 

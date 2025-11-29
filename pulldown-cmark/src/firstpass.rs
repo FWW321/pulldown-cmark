@@ -1,5 +1,5 @@
-//! The first pass resolves all block structure, generating an AST. Within a block, items
-//! are in a linear chain with potential inline markup identified.
+//! 第一遍解析解决所有块级结构，生成AST（抽象语法树）。
+//! 在一个块内，项目以线性链形式存在，并识别出潜在的内联标记。
 
 use alloc::{string::String, vec::Vec};
 use core::{cmp::max, ops::Range, u8};
@@ -18,11 +18,10 @@ use crate::{
     ContainerKind, HeadingLevel, MetadataBlockKind, Options,
 };
 
-/// Runs the first pass, which resolves the block structure of the document,
-/// and returns the resulting tree.
+/// 运行第一遍解析，解决文档的块级结构，
+/// 并返回生成的树。
 pub(crate) fn run_first_pass(text: &str, options: Options) -> (Tree<Item>, Allocations<'_>) {
-    // This is a very naive heuristic for the number of nodes
-    // we'll need.
+    // 这是对我们需要的节点数的一个非常简单的启发式估计。
     let start_capacity = max(128, text.len() / 32);
     let lookup_table = &create_lut(&options);
     let first_pass = FirstPass {
@@ -39,18 +38,16 @@ pub(crate) fn run_first_pass(text: &str, options: Options) -> (Tree<Item>, Alloc
     first_pass.run()
 }
 
-// Each level of brace nesting adds another entry to a hash table.
-// To limit the amount of memory consumed, do not create a new brace
-// context beyond some amount deep.
+// 每一级大括号嵌套都会向哈希表添加另一个条目。
+// 为限制内存消耗量，不要在超过一定深度后创建新的大括号上下文。
 //
-// There are actually two limits at play here: this one,
-// and the one where the maximum amount of distinct contexts passes
-// the 255 item limit imposed by using `u8`. When over 255 distinct
-// contexts are created, it wraps around, while this one instead makes it
-// saturate, which is a better behavior.
+// 这里实际上有两个限制在起作用：这个限制，
+// 以及当不同上下文的最大数量超过使用`u8`强加的255项限制时。
+// 当创建超过255个不同的上下文时，它会回绕，而这个限制则使其饱和，
+// 这是更好的行为。
 const MATH_BRACE_CONTEXT_MAX_NESTING: usize = 25;
 
-/// State for the first parsing pass.
+/// 第一遍解析的状态。
 struct FirstPass<'a, 'b> {
     text: &'a str,
     tree: Tree<Item>,
@@ -59,7 +56,7 @@ struct FirstPass<'a, 'b> {
     allocs: Allocations<'a>,
     options: Options,
     lookup_table: &'b LookupTable,
-    /// Math environment brace nesting.
+    /// 数学环境的大括号嵌套。
     brace_context_stack: Vec<u8>,
     brace_context_next: usize,
 }
@@ -76,12 +73,12 @@ impl<'a, 'b> FirstPass<'a, 'b> {
         (self.tree, self.allocs)
     }
 
-    /// Returns offset after block.
+    /// 返回块之后的偏移量。
     fn parse_block(&mut self, mut start_ix: usize) -> usize {
         let bytes = self.text.as_bytes();
         let mut line_start = LineStart::new(&bytes[start_ix..]);
 
-        // math spans and their braces are tracked only within a single block
+        // 数学跨度及其大括号仅在单个块内跟踪
         self.brace_context_stack.clear();
         self.brace_context_next = 0;
 
@@ -91,7 +88,7 @@ impl<'a, 'b> FirstPass<'a, 'b> {
         }
 
         if self.options.contains(Options::ENABLE_OLD_FOOTNOTES) {
-            // finish footnote if it's still open and was preceded by blank line
+            // 如果脚注仍然开放并且前面有空白行，则完成脚注
             if let Some(node_ix) = self.tree.peek_up() {
                 if let ItemBody::FootnoteDefinition(..) = self.tree[node_ix].item.body {
                     if self.last_line_blank {

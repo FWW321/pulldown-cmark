@@ -4,7 +4,7 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT.
 
-//! A Vec-based container for a tree structure.
+//! 基于Vec的树结构容器。
 
 use alloc::vec::Vec;
 use core::{
@@ -61,9 +61,8 @@ pub(crate) struct Tree<T> {
 }
 
 impl<T: Default> Tree<T> {
-    // Indices start at one, so we place a dummy value at index zero.
-    // The alternative would be subtracting one from every TreeIndex
-    // every time we convert it to usize to index our nodes.
+    // 索引从1开始，所以我们在索引0处放置一个虚拟值。
+    // 另一种方法是每次将TreeIndex转换为usize来索引节点时都减1。
     pub(crate) fn with_capacity(cap: usize) -> Tree<T> {
         let mut nodes = Vec::with_capacity(cap);
         nodes.push(Node {
@@ -78,12 +77,12 @@ impl<T: Default> Tree<T> {
         }
     }
 
-    /// Returns the index of the element currently in focus.
+    /// 返回当前聚焦元素的索引。
     pub(crate) fn cur(&self) -> Option<TreeIndex> {
         self.cur
     }
 
-    /// Append one item to the current position in the tree.
+    /// 向树的当前位置追加一个项目。
     pub(crate) fn append(&mut self, item: T) -> TreeIndex {
         let ix = self.create_node(item);
         let this = Some(ix);
@@ -97,7 +96,7 @@ impl<T: Default> Tree<T> {
         ix
     }
 
-    /// Create an isolated node.
+    /// 创建一个孤立的节点。
     pub(crate) fn create_node(&mut self, item: T) -> TreeIndex {
         let this = self.nodes.len();
         self.nodes.push(Node {
@@ -108,8 +107,8 @@ impl<T: Default> Tree<T> {
         TreeIndex::new(this)
     }
 
-    /// Push down one level, so that new items become children of the current node.
-    /// The new focus index is returned.
+    /// 向下一级，使新项目成为当前节点的子项。
+    /// 返回新的聚焦索引。
     pub(crate) fn push(&mut self) -> TreeIndex {
         let cur_ix = self.cur.unwrap();
         self.spine.push(cur_ix);
@@ -117,7 +116,7 @@ impl<T: Default> Tree<T> {
         cur_ix
     }
 
-    /// Pop back up a level.
+    /// 向上一级。
     pub(crate) fn pop(&mut self) -> Option<TreeIndex> {
         let ix = Some(self.spine.pop()?);
         self.cur = ix;

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-//! Tree-based two pass parser.
+//! 基于树的两遍解析器。
 
 use alloc::{borrow::ToOwned, boxed::Box, collections::VecDeque, string::String, vec::Vec};
 use core::{
@@ -44,10 +44,10 @@ use crate::{
     MetadataBlockKind, Options, Tag, TagEnd,
 };
 
-// Allowing arbitrary depth nested parentheses inside link destinations
-// can create denial of service vulnerabilities if we're not careful.
-// The simplest countermeasure is to limit their depth, which is
-// explicitly allowed by the spec as long as the limit is at least 3:
+// 在链接目标中允许任意深度的嵌套括号，
+// 如果不谨慎处理可能会造成拒绝服务漏洞。
+// 最简单的对策是限制其深度，只要限制至少为3，
+// 规范就明确允许这样做：
 // https://spec.commonmark.org/0.29/#link-destination
 pub(crate) const LINK_MAX_NESTED_PARENS: usize = 32;
 
@@ -60,35 +60,35 @@ pub(crate) struct Item {
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub(crate) enum ItemBody {
-    // These are possible inline items, need to be resolved in second pass.
+    // 这些是可能的内联项，需要在第二遍解析中解决。
 
-    // repeats, can_open, can_close
+    // 重复次数、能否开启、能否关闭
     MaybeEmphasis(usize, bool, bool),
-    // can_open, can_close, brace context
+    // 能否开启、能否关闭、大括号上下文
     MaybeMath(bool, bool, u8),
-    // quote byte, can_open, can_close
+    // 引号字节、能否开启、能否关闭
     MaybeSmartQuote(u8, bool, bool),
-    MaybeCode(usize, bool), // number of backticks, preceded by backslash
+    MaybeCode(usize, bool), // 反引号数量，前面是否有反斜杠
     MaybeHtml,
     MaybeLinkOpen,
-    // bool indicates whether or not the preceding section could be a reference
+    // 布尔值表示前一部分是否可能是引用
     MaybeLinkClose(bool),
     MaybeImage,
 
-    // These are inline items after resolution.
+    // 这些是解决后的内联项。
     Emphasis,
     Strong,
     Strikethrough,
     Superscript,
     Subscript,
-    Math(CowIndex, bool), // true for display math
+    Math(CowIndex, bool), // true表示数学模式
     Code(CowIndex),
     Link(LinkIndex),
     Image(LinkIndex),
     FootnoteReference(CowIndex),
-    TaskListMarker(bool), // true for checked
+    TaskListMarker(bool), // true表示已选中
 
-    // These are also inline items.
+    // 这些也是内联项。
     InlineHtml,
     OwnedInlineHtml(CowIndex),
     SynthesizeText(CowIndex),
@@ -98,14 +98,14 @@ pub(crate) enum ItemBody {
         backslash_escaped: bool,
     },
     SoftBreak,
-    // true = is backlash
+    // true = 表示反斜杠
     HardBreak(bool),
 
-    // Dummy node at the top of the tree - should not be used otherwise!
+    // 树顶部的虚拟节点 - 不应在其他地方使用！
     #[default]
     Root,
 
-    // These are block items.
+    // 这些是块项。
     Paragraph,
     TightParagraph,
     Rule,

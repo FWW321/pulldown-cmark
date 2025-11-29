@@ -18,40 +18,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-//! Pull parser for [CommonMark](https://commonmark.org). This crate provides a [Parser](struct.Parser.html) struct
-//! which is an iterator over [Event](enum.Event.html)s. This iterator can be used
-//! directly, or to output HTML using the [HTML module](html/index.html).
+//! [CommonMark](https://commonmark.org)的拉式解析器（pull parser）。此crate提供了一个[Parser](struct.Parser.html)结构体，
+//! 它是[Event](enum.Event.html)的迭代器。该迭代器可以直接使用，
+//! 也可以通过[HTML模块](html/index.html)输出HTML。
 //!
-//! By default, only CommonMark features are enabled. To use extensions like tables,
-//! footnotes or task lists, enable them by setting the corresponding flags in the
-//! [Options](struct.Options.html) struct.
+//! 默认情况下，只启用CommonMark功能。要使用表格、脚注或任务列表等扩展功能，
+//! 请在[Options](struct.Options.html)结构体中设置相应的标志来启用它们。
 //!
-//! # Example
+//! # 示例
 //! ```rust
 //! use pulldown_cmark::{Parser, Options};
 //!
 //! let markdown_input = "Hello world, this is a ~~complicated~~ *very simple* example.";
 //!
-//! // Set up options and parser. Strikethroughs are not part of the CommonMark standard
-//! // and we therefore must enable it explicitly.
+//! // 设置选项和解析器。删除线不是CommonMark标准的一部分，
+//! // 因此我们必须显式启用它。
 //! let mut options = Options::empty();
 //! options.insert(Options::ENABLE_STRIKETHROUGH);
 //! let parser = Parser::new_ext(markdown_input, options);
 //!
 //! # #[cfg(feature = "html")] {
-//! // Write to String buffer.
+//! // 写入字符串缓冲区。
 //! let mut html_output = String::new();
 //! pulldown_cmark::html::push_html(&mut html_output, parser);
 //!
-//! // Check that the output is what we expected.
+//! // 检查输出是否符合预期。
 //! let expected_html = "<p>Hello world, this is a <del>complicated</del> <em>very simple</em> example.</p>\n";
 //! assert_eq!(expected_html, &html_output);
 //! # }
 //! ```
 //!
-//! Note that consecutive text events can happen due to the manner in which the
-//! parser evaluates the source. A utility `TextMergeStream` exists to improve
-//! the comfort of iterating the events:
+//! 请注意，由于解析器评估源文本的方式，可能会出现连续的文本事件。
+//! 提供了`TextMergeStream`工具来改善事件迭代的便利性：
 //!
 //! ```rust
 //! use pulldown_cmark::{Event, Parser, TextMergeStream};
@@ -73,11 +71,10 @@
     clippy::std_instead_of_alloc,
     clippy::std_instead_of_core
 )]
-// When compiled for the rustc compiler itself we want to make sure that this is
-// an unstable crate.
+// 当为rustc编译器本身编译时，我们要确保这是一个不稳定的crate。
 #![cfg_attr(rustbuild, feature(staged_api, rustc_private))]
 #![cfg_attr(rustbuild, unstable(feature = "rustc_private", issue = "27812"))]
-// Forbid unsafe code unless the SIMD feature is enabled.
+// 除非启用SIMD功能，否则禁止不安全代码。
 #![cfg_attr(not(feature = "simd"), forbid(unsafe_code))]
 #![warn(missing_debug_implementations)]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -100,6 +97,7 @@ use serde::{Deserialize, Serialize};
 pub mod html;
 
 pub mod utils;
+pub mod chunk;
 
 mod entities;
 mod firstpass;
@@ -121,12 +119,12 @@ pub use crate::{
     utils::*,
 };
 
-/// Codeblock kind.
+/// 代码块类型。
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CodeBlockKind<'a> {
     Indented,
-    /// The value contained in the tag describes the language of the code, which may be empty.
+    /// 标签中包含的值描述代码的语言，可能为空。
     #[cfg_attr(feature = "serde", serde(borrow))]
     Fenced(CowStr<'a>),
 }
@@ -148,120 +146,118 @@ impl<'a> CodeBlockKind<'a> {
     }
 }
 
-/// BlockQuote kind (Note, Tip, Important, Warning, Caution).
+/// 引用块类型（Note、Tip、Important、Warning、Caution）。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum BlockQuoteKind {
-    Note,
-    Tip,
-    Important,
-    Warning,
-    Caution,
+    Note,        // 注意
+    Tip,         // 提示
+    Important,   // 重要
+    Warning,     // 警告
+    Caution,     // 警示
 }
 
-/// ContainerBlock kind (Spoiler only).
+/// 容器块类型（仅限Spoiler）。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ContainerKind {
-    Default,
-    Spoiler,
+    Default,  // 默认
+    Spoiler,  // 剧透
 }
 
-/// Metadata block kind.
+/// 元数据块类型。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MetadataBlockKind {
-    YamlStyle,
-    PlusesStyle,
+    YamlStyle,   // YAML风格
+    PlusesStyle, // 加号风格
 }
 
-/// Tags for elements that can contain other elements.
+/// 可以包含其他元素的标签。
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Tag<'a> {
-    /// A paragraph of text and other inline elements.
+    /// 文本和其他内联元素的段落。
     Paragraph,
 
-    /// A heading, with optional identifier, classes and custom attributes.
-    /// The identifier is prefixed with `#` and the last one in the attributes
-    /// list is chosen, classes are prefixed with `.` and custom attributes
-    /// have no prefix and can optionally have a value (`myattr` or `myattr=myvalue`).
+    /// 标题，带有可选的标识符、类和自定义属性。
+    /// 标识符以`#`为前缀，选择属性列表中的最后一个，
+    /// 类以`.`为前缀，自定义属性没有前缀，可以选择性地有值（`myattr`或`myattr=myvalue`）。
     ///
-    /// `id`, `classes` and `attrs` are only parsed and populated with [`Options::ENABLE_HEADING_ATTRIBUTES`], `None` or empty otherwise.
+    /// `id`、`classes`和`attrs`仅在使用[`Options::ENABLE_HEADING_ATTRIBUTES`]时解析和填充，否则为`None`或空。
     Heading {
         level: HeadingLevel,
         id: Option<CowStr<'a>>,
         classes: Vec<CowStr<'a>>,
-        /// The first item of the tuple is the attr and second one the value.
+        /// 元组的第一个项是属性，第二个项是值。
         attrs: Vec<(CowStr<'a>, Option<CowStr<'a>>)>,
     },
 
-    /// A block quote.
+    /// 引用块。
     ///
-    /// The `BlockQuoteKind` is only parsed & populated with [`Options::ENABLE_GFM`], `None` otherwise.
+    /// `BlockQuoteKind`仅在使用[`Options::ENABLE_GFM`]时解析和填充，否则为`None`。
     ///
     /// ```markdown
-    /// > regular quote
+    /// > 常规引用
     ///
     /// > [!NOTE]
-    /// > note quote
+    /// > 注意引用
     /// ```
     BlockQuote(Option<BlockQuoteKind>),
-    /// A code block.
+    /// 代码块。
     CodeBlock(CodeBlockKind<'a>),
     ContainerBlock(ContainerKind, CowStr<'a>),
 
-    /// An HTML block.
+    /// HTML块。
     ///
-    /// A line that begins with some predefined tags (HTML block tags) (see [CommonMark Spec](https://spec.commonmark.org/0.31.2/#html-blocks) for more details) or any tag that is followed only by whitespace.
+    /// 以某些预定义标签（HTML块标签）开始的行（详见[CommonMark规范](https://spec.commonmark.org/0.31.2/#html-blocks)），
+    /// 或任何仅后面跟空白字符的标签。
     ///
-    /// Most HTML blocks end on an empty line, though some e.g. `<pre>` like `<script>` or `<!-- Comments -->` don't.
+    /// 大多数HTML块在空行结束，但一些如`<pre>`、`<script>`或`<!-- Comments -->`等不会。
     /// ```markdown
-    /// <body> Is HTML block even though here is non-whitespace.
-    /// Block ends on an empty line.
+    /// <body> 这里是非空白字符，但仍然是HTML块。
+    /// 块在空行结束。
     ///
     /// <some-random-tag>
-    /// This is HTML block.
+    /// 这是HTML块。
     ///
-    /// <pre> Doesn't end on empty lines.
+    /// <pre> 在空行处不结束。
     ///
-    /// This is still the same block.</pre>
+    /// 这仍然是同一个块。</pre>
     /// ```
     HtmlBlock,
 
-    /// A list. If the list is ordered the field indicates the number of the first item.
-    /// Contains only list items.
-    List(Option<u64>), // TODO: add delim and tight for ast (not needed for html)
-    /// A list item.
+    /// 列表。如果列表是有序的，字段指示第一项的编号。
+    /// 仅包含列表项。
+    List(Option<u64>), // TODO: 为AST添加分隔符和紧凑模式（HTML不需要）
+    /// 列表项。
     Item,
-    /// A footnote definition. The value contained is the footnote's label by which it can
-    /// be referred to.
+    /// 脚注定义。包含的值是脚注的标签，通过该标签可以引用它。
     ///
-    /// Only parsed and emitted with [`Options::ENABLE_FOOTNOTES`] or [`Options::ENABLE_OLD_FOOTNOTES`].
+    /// 仅在使用[`Options::ENABLE_FOOTNOTES`]或[`Options::ENABLE_OLD_FOOTNOTES`]时解析和发出。
     #[cfg_attr(feature = "serde", serde(borrow))]
     FootnoteDefinition(CowStr<'a>),
 
-    /// Only parsed and emitted with [`Options::ENABLE_DEFINITION_LIST`].
+    /// 仅在使用[`Options::ENABLE_DEFINITION_LIST`]时解析和发出。
     DefinitionList,
-    /// Only parsed and emitted with [`Options::ENABLE_DEFINITION_LIST`].
+    /// 仅在使用[`Options::ENABLE_DEFINITION_LIST`]时解析和发出。
     DefinitionListTitle,
-    /// Only parsed and emitted with [`Options::ENABLE_DEFINITION_LIST`].
+    /// 仅在使用[`Options::ENABLE_DEFINITION_LIST`]时解析和发出。
     DefinitionListDefinition,
 
-    /// A table. Contains a vector describing the text-alignment for each of its columns.
-    /// Only parsed and emitted with [`Options::ENABLE_TABLES`].
+    /// 表格。包含描述每列文本对齐方式的向量。
+    /// 仅在使用[`Options::ENABLE_TABLES`]时解析和发出。
     Table(Vec<Alignment>),
-    /// A table header. Contains only `TableCell`s. Note that the table body starts immediately
-    /// after the closure of the `TableHead` tag. There is no `TableBody` tag.
-    /// Only parsed and emitted with [`Options::ENABLE_TABLES`].
+    /// 表头。仅包含`TableCell`。请注意，表体在`TableHead`标签关闭后立即开始。
+    /// 没有`TableBody`标签。
+    /// 仅在使用[`Options::ENABLE_TABLES`]时解析和发出。
     TableHead,
-    /// A table row. Is used both for header rows as body rows. Contains only `TableCell`s.
-    /// Only parsed and emitted with [`Options::ENABLE_TABLES`].
+    /// 表格行。用于表头行和表体行。仅包含`TableCell`。
     TableRow,
-    /// Only parsed and emitted with [`Options::ENABLE_TABLES`].
+    /// 仅在使用[`Options::ENABLE_TABLES`]时解析和发出。
     TableCell,
 
-    // span-level tags
+    // 跨度级别标签
     /// [Emphasis](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis).
     /// ```markdown
     /// half*emph* _strong_ _multi _level__
@@ -290,28 +286,28 @@ pub enum Tag<'a> {
     /// ```
     Subscript,
 
-    /// A link.
+    /// 链接。
     Link {
         link_type: LinkType,
         dest_url: CowStr<'a>,
         title: CowStr<'a>,
-        /// Identifier of reference links, e.g. `world` in the link `[hello][world]`.
+        /// 引用链接的标识符，例如链接`[hello][world]`中的`world`。
         id: CowStr<'a>,
     },
 
-    /// An image. The first field is the link type, the second the destination URL and the third is a title,
-    /// the fourth is the link identifier.
+    /// 图片。第一个字段是链接类型，第二个是目标URL，第三个是标题，
+    /// 第四个是链接标识符。
     Image {
         link_type: LinkType,
         dest_url: CowStr<'a>,
         title: CowStr<'a>,
-        /// Identifier of reference links, e.g. `world` in the link `[hello][world]`.
+        /// 引用链接的标识符，例如链接`[hello][world]`中的`world`。
         id: CowStr<'a>,
     },
 
-    /// A metadata block.
-    /// Only parsed and emitted with [`Options::ENABLE_YAML_STYLE_METADATA_BLOCKS`]
-    /// or [`Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS`].
+    /// 元数据块。
+    /// 仅在使用[`Options::ENABLE_YAML_STYLE_METADATA_BLOCKS`]
+    /// 或[`Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS`]时解析和发出。
     MetadataBlock(MetadataBlockKind),
 }
 
@@ -408,7 +404,7 @@ impl<'a> Tag<'a> {
     }
 }
 
-/// The end of a `Tag`.
+/// `Tag`的结束标记。
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TagEnd {
@@ -447,8 +443,8 @@ pub enum TagEnd {
     MetadataBlock(MetadataBlockKind),
 }
 
-/// Make sure `TagEnd` is no more than two bytes in size.
-/// This is why it's used instead of just using `Tag`.
+/// 确保`TagEnd`的大小不超过两个字节。
+/// 这就是使用它而不是直接使用`Tag`的原因。
 #[cfg(target_pointer_width = "64")]
 const _STATIC_ASSERT_TAG_END_SIZE: [(); 2] = [(); core::mem::size_of::<TagEnd>()];
 
@@ -482,8 +478,8 @@ impl Display for HeadingLevel {
     }
 }
 
-/// Returned when trying to convert a `usize` into a `Heading` but it fails
-/// because the usize isn't a valid heading level
+/// 当尝试将`usize`转换为`Heading`但失败时返回的错误类型，
+/// 原因是该usize值不是有效的标题级别
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct InvalidHeadingLevel(usize);
 
@@ -503,31 +499,31 @@ impl TryFrom<usize> for HeadingLevel {
     }
 }
 
-/// Type specifier for inline links. See [the Tag::Link](enum.Tag.html#variant.Link) for more information.
+/// 内联链接的类型说明符。更多信息请参见[Tag::Link](enum.Tag.html#variant.Link)。
 #[derive(Clone, Debug, PartialEq, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum LinkType {
-    /// Inline link like `[foo](bar)`
+    /// 内联链接，如`[foo](bar)`
     Inline,
-    /// Reference link like `[foo][bar]`
+    /// 引用链接，如`[foo][bar]`
     Reference,
-    /// Reference without destination in the document, but resolved by the broken_link_callback
+    /// 文档中没有目标的引用链接，通过broken_link_callback解析
     ReferenceUnknown,
-    /// Collapsed link like `[foo][]`
+    /// 折叠链接，如`[foo][]`
     Collapsed,
-    /// Collapsed link without destination in the document, but resolved by the broken_link_callback
+    /// 文档中没有目标的折叠链接，通过broken_link_callback解析
     CollapsedUnknown,
-    /// Shortcut link like `[foo]`
+    /// 快捷链接，如`[foo]`
     Shortcut,
-    /// Shortcut without destination in the document, but resolved by the broken_link_callback
+    /// 文档中没有目标的快捷链接，通过broken_link_callback解析
     ShortcutUnknown,
-    /// Autolink like `<http://foo.bar/baz>`
+    /// 自动链接，如`<http://foo.bar/baz>`
     Autolink,
-    /// Email address in autolink like `<john@example.org>`
+    /// 自动链接中的电子邮件地址，如`<john@example.org>`
     Email,
-    /// Wikilink link like `[[foo]]` or `[[foo|bar]]`
+    /// 维基链接，如`[[foo]]`或`[[foo|bar]]`
     WikiLink {
-        /// `true` if the wikilink was piped.
+        /// 如果维基链接是管道形式的则为`true`。
         ///
         /// * `true` - `[[foo|bar]]`
         /// * `false` - `[[foo]]`
@@ -536,7 +532,7 @@ pub enum LinkType {
 }
 
 impl LinkType {
-    /// Map the link type to an equivalent _Unknown link type.
+    /// 将链接类型映射到等效的未知链接类型。
     fn to_unknown(self) -> Self {
         match self {
             LinkType::Reference => LinkType::ReferenceUnknown,
@@ -547,22 +543,20 @@ impl LinkType {
     }
 }
 
-/// Markdown events that are generated in a preorder traversal of the document
-/// tree, with additional `End` events whenever all of an inner node's children
-/// have been visited.
+/// 在文档树的前序遍历中生成的Markdown事件，
+/// 当内部节点的所有子节点都被访问完毕时，会产生额外的`End`事件。
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Event<'a> {
-    /// Start of a tagged element. Events that are yielded after this event
-    /// and before its corresponding `End` event are inside this element.
-    /// Start and end events are guaranteed to be balanced.
+    /// 标记元素的开始。在此事件之后和其对应的`End`事件之前产生的事件都在此元素内部。
+    /// 开始和结束事件保证是平衡的。
     #[cfg_attr(feature = "serde", serde(borrow))]
     Start(Tag<'a>),
-    /// End of a tagged element.
+    /// 标记元素的结束。
     End(TagEnd),
-    /// A text node.
+    /// 文本节点。
     ///
-    /// All text, outside and inside [`Tag`]s.
+    /// [`Tag`]外部和内部的所有文本。
     #[cfg_attr(feature = "serde", serde(borrow))]
     Text(CowStr<'a>),
     /// An [inline code node](https://spec.commonmark.org/0.31.2/#code-spans).
@@ -595,14 +589,13 @@ pub enum Event<'a> {
     Html(CowStr<'a>),
     /// An [inline HTML node](https://spec.commonmark.org/0.31.2/#raw-html).
     ///
-    /// Contains only the tag itself, e.g. `<open-tag>`, `</close-tag>` or `<!-- comment -->`.
+    /// 仅包含标签本身，例如`<open-tag>`、`</close-tag>`或`<!-- comment -->`。
     ///
-    /// **Note**: Under some conditions HTML can also be parsed as an HTML Block, see [`Tag::HtmlBlock`] for details.
+    /// **注意**：在某些条件下，HTML也可以被解析为HTML块，详情请参见[`Tag::HtmlBlock`]。
     #[cfg_attr(feature = "serde", serde(borrow))]
     InlineHtml(CowStr<'a>),
-    /// A reference to a footnote with given label, defined
-    /// by an event with a [`Tag::FootnoteDefinition`] tag. Definitions and references to them may
-    /// occur in any order. Only parsed and emitted with [`Options::ENABLE_FOOTNOTES`] or [`Options::ENABLE_OLD_FOOTNOTES`].
+    /// 对具有给定标签的脚注的引用，由带有[`Tag::FootnoteDefinition`]标签的事件定义。
+    /// 定义和引用可以按任意顺序出现。仅在使用[`Options::ENABLE_FOOTNOTES`]或[`Options::ENABLE_OLD_FOOTNOTES`]时解析和发出。
     ///
     /// ```markdown
     /// [^1]
@@ -611,18 +604,18 @@ pub enum Event<'a> {
     FootnoteReference(CowStr<'a>),
     /// A [soft line break](https://spec.commonmark.org/0.31.2/#soft-line-breaks).
     ///
-    /// Any line break that isn't a [`HardBreak`](Self::HardBreak), or the end of e.g. a paragraph.
+    /// 任何不是[`HardBreak`](Self::HardBreak)的换行符，或者例如段落的结尾。
     SoftBreak,
     /// A [hard line break](https://spec.commonmark.org/0.31.2/#hard-line-breaks).
     ///
-    /// A line ending that is either preceded by at least two spaces or `\`.
+    /// 由至少两个空格或`\`字符前置的行结尾。
     ///
     /// ```markdown
     /// hard··
     /// line\
     /// breaks
     /// ```
-    /// *`·` is a space*
+    /// *`·`是一个空格*
     HardBreak,
     /// A horizontal ruler.
     ///
@@ -631,10 +624,10 @@ pub enum Event<'a> {
     /// ···---
     /// _·_··_····_··
     /// ```
-    /// *`·` is any whitespace*
+    /// *`·`是任何空白字符*
     Rule,
-    /// A task list marker, rendered as a checkbox in HTML. Contains a true when it is checked.
-    /// Only parsed and emitted with [`Options::ENABLE_TASKLISTS`].
+    /// 任务列表标记，在HTML中呈现为复选框。选中时包含true。
+    /// 仅在使用[`Options::ENABLE_TASKLISTS`]时解析和发出。
     /// ```markdown
     /// - [ ] unchecked
     /// - [x] checked
@@ -662,12 +655,12 @@ impl<'a> Event<'a> {
     }
 }
 
-/// Table column text alignment.
+/// 表格列文本对齐方式。
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 
 pub enum Alignment {
-    /// Default text alignment.
+    /// 默认文本对齐方式。
     None,
     Left,
     Center,
@@ -675,15 +668,15 @@ pub enum Alignment {
 }
 
 bitflags::bitflags! {
-    /// Option struct containing flags for enabling extra features
-    /// that are not part of the CommonMark spec.
+    /// 包含用于启用额外功能的标志的选项结构体，
+    /// 这些功能不是CommonMark规范的一部分。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct Options: u32 {
         const ENABLE_TABLES = 1 << 1;
-        /// GitHub-compatible footnote syntax.
+        /// GitHub兼容的脚注语法。
         ///
-        /// Footnotes are referenced with the syntax `[^IDENT]`,
-        /// and defined with an identifier followed by a colon at top level.
+        /// 脚注使用`[^IDENT]`语法引用，
+        /// 并在顶级使用标识符后跟冒号定义。
         ///
         /// ---
         ///
@@ -699,36 +692,35 @@ bitflags::bitflags! {
         const ENABLE_FOOTNOTES = 1 << 2;
         const ENABLE_STRIKETHROUGH = 1 << 3;
         const ENABLE_TASKLISTS = 1 << 4;
-        /// Enables replacement of ASCII punctuation characters with
-        /// Unicode ligatures and smart quotes.
+        /// 启用将ASCII标点字符替换为
+        /// Unicode连字和智能引号。
         ///
-        /// This includes replacing `--` with `—`, `---` with `—`, `...` with `…`,
-        /// `"quote"` with `“quote”`, and `'quote'` with `‘quote’`.
+        /// 这包括将`--`替换为`—`，`---`替换为`—`，`...`替换为`…`，
+        /// `"quote"`替换为`"quote"`，以及`'quote'`替换为`'quote'`。
         ///
-        /// The replacement takes place during the parsing of the document.
+        /// 替换在文档解析过程中进行。
         const ENABLE_SMART_PUNCTUATION = 1 << 5;
-        /// Extension to allow headings to have ID and classes.
+        /// 允许标题具有ID和类的扩展。
         ///
         /// `# text { #id .class1 .class2 myattr other_attr=myvalue }`
-        /// is interpreted as a level 1 heading
-        /// with the content `text`, ID `id`, classes `class1` and `class2` and
-        /// custom attributes `myattr` (without value) and
-        /// `other_attr` with value `myvalue`.
-        /// Note that ID, classes, and custom attributes should be space-separated.
+        /// 被解释为级别1的标题，
+        /// 内容为`text`，ID为`id`，类为`class1`和`class2`，以及
+        /// 自定义属性`myattr`（无值）和
+        /// 值为`myvalue`的`other_attr`。
+        /// 注意，ID、类和自定义属性应该用空格分隔。
         const ENABLE_HEADING_ATTRIBUTES = 1 << 6;
-        /// Metadata blocks in YAML style, i.e.:
-        /// - starting with a `---` line
-        /// - ending with a `---` or `...` line
+        /// YAML风格的元数据块，即：
+        /// - 以`---`行开始
+        /// - 以`---`或`...`行结束
         const ENABLE_YAML_STYLE_METADATA_BLOCKS = 1 << 7;
-        /// Metadata blocks delimited by:
-        /// - `+++` line at start
-        /// - `+++` line at end
+        /// 由以下内容分隔的元数据块：
+        /// - 开始处的`+++`行
+        /// - 结束处的`+++`行
         const ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS = 1 << 8;
-        /// Older footnote syntax. This flag implies `ENABLE_FOOTNOTES`, changing it to use an
-        /// older syntax instead of the new, default, GitHub-compatible syntax.
+        /// 较旧的脚注语法。此标志意味着`ENABLE_FOOTNOTES`，将其更改为使用
+        /// 较旧的语法，而不是新的、默认的GitHub兼容语法。
         ///
-        /// New syntax is different from the old syntax regarding
-        /// indentation, nesting, and footnote references with no definition:
+        /// 新语法与旧语法在缩进、嵌套和没有定义的脚注引用方面有所不同：
         ///
         /// ```markdown
         /// [^1]: In new syntax, this is two footnote definitions.
@@ -740,18 +732,18 @@ bitflags::bitflags! {
         ///
         ///     In old syntax, this is a footnote followed by a code block.
         ///
-        /// In new syntax, this undefined footnote definition renders as
-        /// literal text [^4]. In old syntax, it creates a dangling link.
+        /// 在新语法中，这个未定义的脚注定义呈现为
+        /// 字面文本[^4]。在旧语法中，它创建一个悬空链接。
         /// ```
         const ENABLE_OLD_FOOTNOTES = (1 << 9) | (1 << 2);
-        /// With this feature enabled, two events `Event::InlineMath` and `Event::DisplayMath`
-        /// are emitted that conventionally contain TeX formulas.
+        /// 启用此功能后，会发出两个事件`Event::InlineMath`和`Event::DisplayMath`，
+        /// 它们按惯例包含TeX公式。
         const ENABLE_MATH = 1 << 10;
-        /// Misc GitHub Flavored Markdown features not supported in CommonMark.
-        /// The following features are currently behind this tag:
-        /// - Blockquote tags ([!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]).
+        /// CommonMark中不支持的其他GitHub风格Markdown功能。
+        /// 目前此标志下的功能包括：
+        /// - 引用块标签（[!NOTE]、[!TIP]、[!IMPORTANT]、[!WARNING]、[!CAUTION]）。
         const ENABLE_GFM = 1 << 11;
-        /// Commonmark-HS-Extensions compatible definition lists.
+        /// 与Commonmark-HS-Extensions兼容的定义列表。
         ///
         /// ```markdown
         /// title 1
@@ -764,9 +756,9 @@ bitflags::bitflags! {
         const ENABLE_DEFINITION_LIST = 1 << 12;
         const ENABLE_SUPERSCRIPT = 1 << 13;
         const ENABLE_SUBSCRIPT = 1 << 14;
-        /// Obsidian-style Wikilinks.
+        /// Obsidian风格的维基链接。
         const ENABLE_WIKILINKS = 1 << 15;
-        /// Colon-delimited Container Extension Blocks.
+        /// 冒号分隔的容器扩展块。
         const ENABLE_CONTAINER_EXTENSIONS = 1 << 16;
     }
 }

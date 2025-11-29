@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-//! HTML renderer that takes an iterator of events as input.
+//! HTML 渲染器，接收事件迭代器作为输入。
 
 use alloc::{string::String, vec::Vec};
 #[cfg(all(feature = "std", not(feature = "hashbrown")))]
@@ -44,16 +44,16 @@ enum TableState {
 }
 
 struct HtmlWriter<'a, I, W> {
-    /// Iterator supplying events.
+    /// 事件迭代器。
     iter: I,
 
-    /// Writer to write to.
+    /// 写入器。
     writer: W,
 
-    /// Whether or not the last write wrote a newline.
+    /// 上次写入是否以换行符结尾。
     end_newline: bool,
 
-    /// Whether if inside a metadata block (text should not be written)
+    /// 是否在元数据块内（不应写入文本）
     in_non_writing_block: bool,
 
     table_state: TableState,
@@ -80,14 +80,14 @@ where
         }
     }
 
-    /// Writes a new line.
+    /// 写入新行。
     #[inline]
     fn write_newline(&mut self) -> Result<(), W::Error> {
         self.end_newline = true;
         self.writer.write_str("\n")
     }
 
-    /// Writes a buffer, and tracks whether or not a newline was written.
+    /// 写入缓冲区，并跟踪是否写入了换行符。
     #[inline]
     fn write(&mut self, s: &str) -> Result<(), W::Error> {
         self.writer.write_str(s)?;
@@ -113,10 +113,13 @@ where
                         self.end_newline = text.ends_with('\n');
                     }
                 }
+                // 行内代码
                 Code(text) => {
-                    self.write("<code>")?;
+                    // self.write("<code>")?;
+                    self.write("<kbd class=\"kbd\">")?;
                     escape_html_body_text(&mut self.writer, &text)?;
-                    self.write("</code>")?;
+                    self.write("</kbd>")?;
+                    // self.write("</code>")?;
                 }
                 InlineMath(text) => {
                     self.write(r#"<span class="math math-inline">"#)?;
@@ -164,7 +167,7 @@ where
         Ok(())
     }
 
-    /// Writes the start of an HTML tag.
+    /// 写入HTML标签的开始部分。
     fn start_tag(&mut self, tag: Tag<'a>) -> Result<(), W::Error> {
         match tag {
             Tag::HtmlBlock => Ok(()),
@@ -217,7 +220,7 @@ where
             }
             Tag::Table(alignments) => {
                 self.table_alignments = alignments;
-                self.write("<table>")
+                self.write("<table class=\"table table-zebra w-full\">\n")
             }
             Tag::TableHead => {
                 self.table_state = TableState::Head;
@@ -245,20 +248,28 @@ where
                 }
             }
             Tag::BlockQuote(kind) => {
-                let class_str = match kind {
-                    None => "",
+                let (class_str, icon) = match kind {
+                    None => ("", ""),
                     Some(kind) => match kind {
-                        BlockQuoteKind::Note => " class=\"markdown-alert-note\"",
-                        BlockQuoteKind::Tip => " class=\"markdown-alert-tip\"",
-                        BlockQuoteKind::Important => " class=\"markdown-alert-important\"",
-                        BlockQuoteKind::Warning => " class=\"markdown-alert-warning\"",
-                        BlockQuoteKind::Caution => " class=\"markdown-alert-caution\"",
+                        BlockQuoteKind::Note => (" class=\"markdown-alert-note\"",
+                        r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+                        "#),
+                        BlockQuoteKind::Tip => (" class=\"markdown-alert-tip\"",
+                        r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg>
+                        "#),
+                        BlockQuoteKind::Important => (" class=\"markdown-alert-important\"", "❗\n"),
+                        BlockQuoteKind::Warning => (" class=\"markdown-alert-warning\"",
+                        r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        "#),
+                        BlockQuoteKind::Caution => (" class=\"markdown-alert-caution\"",
+                        r#"<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.25-8.25-3.286Zm0 13.036h.008v.008H12v-.008Z"/></svg>
+                        "#),
                     },
                 };
                 if self.end_newline {
-                    self.write(&format!("<blockquote{}>\n", class_str))
+                    self.write(&format!("<blockquote{}>\n{}", class_str, icon))
                 } else {
-                    self.write(&format!("\n<blockquote{}>\n", class_str))
+                    self.write(&format!("\n<blockquote{}>\n{}", class_str, icon))
                 }
             }
             Tag::CodeBlock(info) => {
@@ -292,9 +303,9 @@ where
                     self.write_newline()?;
                 }
                 if summary.is_empty() {
-                    self.write("<details>")
+                    self.write("<details class=\"collapse collapse-plus bg-base-100 border-base-300 border\">")
                 } else {
-                    self.write("<details><summary>")?;
+                    self.write("<details class=\"collapse collapse-plus bg-base-100 border-base-300 border\"><summary class=\"collapse-title font-semibold\">")?;
                     escape_html(&mut self.writer, summary.as_ref())?;
                     self.write("</summary>")
                 }
@@ -361,7 +372,7 @@ where
                 title,
                 id: _,
             } => {
-                self.write("<a href=\"mailto:")?;
+                self.write("<a class=\"link link-warning\" href=\"mailto:")?;
                 escape_href(&mut self.writer, &dest_url)?;
                 if !title.is_empty() {
                     self.write("\" title=\"")?;
@@ -375,7 +386,7 @@ where
                 title,
                 id: _,
             } => {
-                self.write("<a href=\"")?;
+                self.write("<a class=\"link\" href=\"")?;
                 escape_href(&mut self.writer, &dest_url)?;
                 if !title.is_empty() {
                     self.write("\" title=\"")?;
@@ -499,7 +510,7 @@ where
             TagEnd::Link => {
                 self.write("</a>")?;
             }
-            TagEnd::Image => (), // shouldn't happen, handled in start
+            TagEnd::Image => (), // 不应该发生，在start处理
             TagEnd::FootnoteDefinition => {
                 self.write("</div>\n")?;
             }
@@ -510,7 +521,7 @@ where
         Ok(())
     }
 
-    // run raw text, consuming end tag
+    // 运行原始文本，消费结束标签
     fn raw_text(&mut self) -> Result<(), W::Error> {
         let mut nest = 0;
         while let Some(event) = self.iter.next() {
@@ -524,8 +535,8 @@ where
                 }
                 Html(_) => {}
                 InlineHtml(text) | Code(text) | Text(text) => {
-                    // Don't use escape_html_body_text here.
-                    // The output of this function is used in the `alt` attribute.
+                    // 这里不要使用 escape_html_body_text。
+                    // 此函数的输出用于 `alt` 属性。
                     escape_html(&mut self.writer, &text)?;
                     self.end_newline = text.ends_with('\n');
                 }
@@ -555,10 +566,10 @@ where
     }
 }
 
-/// Iterate over an `Iterator` of `Event`s, generate HTML for each `Event`, and
-/// push it to a `String`.
+/// 遍历 `Event` 迭代器，为每个 `Event` 生成HTML，
+/// 并将其推送到 `String` 中。
 ///
-/// # Examples
+/// # 示例
 ///
 /// ```
 /// use pulldown_cmark::{html, Parser};
@@ -589,15 +600,15 @@ where
     write_html_fmt(s, iter).unwrap()
 }
 
-/// Iterate over an `Iterator` of `Event`s, generate HTML for each `Event`, and
-/// write it out to an I/O stream.
+/// 遍历 `Event` 迭代器，为每个 `Event` 生成HTML，
+/// 并将其写入 I/O 流。
 ///
-/// **Note**: using this function with an unbuffered writer like a file or socket
-/// will result in poor performance. Wrap these in a
-/// [`BufWriter`](https://doc.rust-lang.org/std/io/struct.BufWriter.html) to
-/// prevent unnecessary slowdowns.
+/// **注意**：在非缓冲写入器（如文件或套接字）上使用此函数
+/// 会导致性能不佳。请将其包装在
+/// [`BufWriter`](https://doc.rust-lang.org/std/io/struct.BufWriter.html) 中
+/// 以防止不必要的性能下降。
 ///
-/// # Examples
+/// # 示例
 ///
 /// ```
 /// use pulldown_cmark::{html, Parser};
@@ -631,10 +642,10 @@ where
     HtmlWriter::new(iter, IoWriter(writer)).run()
 }
 
-/// Iterate over an `Iterator` of `Event`s, generate HTML for each `Event`, and
-/// write it into Unicode-accepting buffer or stream.
+/// 遍历 `Event` 迭代器，为每个 `Event` 生成HTML，
+/// 并将其写入支持Unicode的缓冲区或流。
 ///
-/// # Examples
+/// # 示例
 ///
 /// ```
 /// use pulldown_cmark::{html, Parser};
