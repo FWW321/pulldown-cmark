@@ -312,25 +312,25 @@ where
             }
             Tag::List(Some(1)) => {
                 if self.end_newline {
-                    self.write("<ol class=\"list-decimal\">\n")
+                    self.write("<ol class=\"list-decimal list-inside\">\n")
                 } else {
-                    self.write("\n<ol class=\"list-decimal\">\n")
+                    self.write("\n<ol class=\"list-decimal list-inside\">\n")
                 }
             }
             Tag::List(Some(start)) => {
                 if self.end_newline {
-                    self.write("<ol class=\"list-decimal\" start=\"")?;
+                    self.write("<ol class=\"list-decimal list-inside list\" start=\"")?;
                 } else {
-                    self.write("\n<ol class=\"list-decimal\" start=\"")?;
+                    self.write("\n<ol class=\"list-decimal list-inside list\" start=\"")?;
                 }
                 write!(&mut self.writer, "{}", start)?;
                 self.write("\">\n")
             }
             Tag::List(None) => {
                 if self.end_newline {
-                    self.write("<ul>\n")
+                    self.write("<ul class=\"list-disc list-inside list\">\n")
                 } else {
-                    self.write("\n<ul>\n")
+                    self.write("\n<ul class=\"list-disc list-inside list\">\n")
                 }
             }
             Tag::Item => {
