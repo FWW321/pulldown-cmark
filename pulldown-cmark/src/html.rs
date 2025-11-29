@@ -303,18 +303,18 @@ where
                     self.write_newline()?;
                 }
                 if summary.is_empty() {
-                    self.write("<details class=\"collapse collapse-plus bg-base-100 border-base-300 border\">")
+                    self.write("<details class=\"collapse collapse-plus border\">")
                 } else {
-                    self.write("<details class=\"collapse collapse-plus bg-base-100 border-base-300 border\"><summary class=\"collapse-title font-semibold\">")?;
+                    self.write("<details class=\"collapse collapse-plus border\"><summary class=\"collapse-title font-semibold\">")?;
                     escape_html(&mut self.writer, summary.as_ref())?;
-                    self.write("</summary>")
+                    self.write("</summary><div class=\"collapse-content text-sm\">")
                 }
             }
             Tag::List(Some(1)) => {
                 if self.end_newline {
-                    self.write("<ol class=\"list-decimal list-inside\">\n")
+                    self.write("<ol class=\"list-decimal list-inside list\">\n")
                 } else {
-                    self.write("\n<ol class=\"list-decimal list-inside\">\n")
+                    self.write("\n<ol class=\"list-decimal list-inside list\">\n")
                 }
             }
             Tag::List(Some(start)) => {
@@ -469,7 +469,8 @@ where
                 self.write("</code></pre>\n")?;
             }
             TagEnd::ContainerBlock(Spoiler) => {
-                self.write("</details>\n")?;
+                
+                self.write("</div></details>\n")?;
             }
             TagEnd::ContainerBlock(Default) => {
                 self.write("</div>\n")?;
