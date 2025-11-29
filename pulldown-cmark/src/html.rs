@@ -312,16 +312,16 @@ where
             }
             Tag::List(Some(1)) => {
                 if self.end_newline {
-                    self.write("<ol>\n")
+                    self.write("<ol class=\"list-decimal\">\n")
                 } else {
-                    self.write("\n<ol>\n")
+                    self.write("\n<ol class=\"list-decimal\">\n")
                 }
             }
             Tag::List(Some(start)) => {
                 if self.end_newline {
-                    self.write("<ol start=\"")?;
+                    self.write("<ol class=\"list-decimal\" start=\"")?;
                 } else {
-                    self.write("\n<ol start=\"")?;
+                    self.write("\n<ol class=\"list-decimal\" start=\"")?;
                 }
                 write!(&mut self.writer, "{}", start)?;
                 self.write("\">\n")
